@@ -1,0 +1,1 @@
+{"name": "Fredbot", "version": "1.0.0", "dependencies": {"baileys": "^4.3.0", "music-downloader": "^2.0.0", "ytdl-core": "^4.9.0", "command-handler": "^3.0.0"}}
