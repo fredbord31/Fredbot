@@ -1,4 +1,3 @@
-
 const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 
@@ -12,14 +11,15 @@ async function startBot() {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: ["Ubuntu", "Chrome", "20.0.0.4"],
+        browser: ["Ubuntu", "Chrome", "110.0.5481.178"], 
         printQRInTerminal: false,
-        connectTimeoutMs: 90000,
+        connectTimeoutMs: 90000, 
         keepAliveIntervalMs: 30000
     });
 
     if (!sock.authState.creds.registered) {
-        const num = "393927483420"
+        // Tu número configurado correctamente
+        const num = "393927483420"; 
         setTimeout(async () => {
             try {
                 let code = await sock.requestPairingCode(num);
@@ -27,11 +27,11 @@ async function startBot() {
                 console.log('\n' + '═'.repeat(30));
                 console.log(`👉 TU CÓDIGO ES: ${code}`);
                 console.log('═'.repeat(30));
-                console.log('Tienes 1:30 min para usarlo antes de que expire ⏳\n');
+                console.log('Vincúlalo ahora en tu WhatsApp ⏳\n');
             } catch (err) { 
-                console.log("❌ Error. Reintenta con: node index.js"); 
+                console.log("❌ Error. Reintenta: node index.js"); 
             }
-        }, 5000); 
+        }, 6000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -69,22 +69,40 @@ async function startBot() {
                 await sock.sendMessage(from, { react: { text: "🫂", key: msg.key } });
                 await sock.sendMessage(from, { text: `*${pushName}* envió un abrazo.` });
                 break;
+            case '#smoke':
+                await sock.sendMessage(from, { react: { text: "🚬", key: msg.key } });
+                await sock.sendMessage(from, { text: `*${pushName}* fumando... ☁️` });
+                break;
             case '#cartera':
-                await sock.sendMessage(from, { text: `🏦 *BANCO FREDBOT*\n\n👤: ${pushName}\n🪙: ${db.users[from].coins} Fredcoins` });
+                await sock.sendMessage(from, { text: `🏦 *BANCO FREDBOT*\n👤: ${pushName}\n🪙: ${db.users[from].coins} Fredcoins` });
+                break;
+            case '#ruleta':
+                let bet = parseInt(args[0]) || 10;
+                if (bet > db.users[from].coins) return sock.sendMessage(from, { text: '❌ Coins insuficientes.' });
+                let win = Math.random() > 0.6;
+                db.users[from].coins += win ? bet : -bet;
+                await sock.sendMessage(from, { text: win ? `✅ +${bet} 🎉` : `💀 -${bet}` });
                 break;
             case '#factos':
                 const f = ["El que madruga, tiene sueño.", "Fred el lobo manda.", "Maracaibo 030.", "JavaScript es vida."];
                 await sock.sendMessage(from, { text: `🗿 *FACTO:* ${f[Math.floor(Math.random() * f.length)]}` });
                 break;
+            case '#piropo':
+                await sock.sendMessage(from, { text: "Si la belleza fuera pecado, no tendrías perdón de Dios. 😉" });
+                break;
             case '#menu':
                 const menu = `
 ╔════ 🐺 *FREDBOT 030* ════╗
-║  *BIENVENIDO:* ${pushName}
+║  *USUARIO:* ${pushName}
 ╠═══════════════════════════
-║ #neko, #waifu, #hug
-║ #cartera, #factos, #menu
+║ 🌸 #neko, #waifu, #hug, #smoke
+║ 🎮 #cartera, #ruleta
+║ 🗿 #factos, #piropo, #ping
 ╚═══════════════════════════`;
                 await sock.sendMessage(from, { text: menu });
+                break;
+            case '#ping':
+                await sock.sendMessage(from, { text: '🚀 ¡Pong!' });
                 break;
         }
     });
