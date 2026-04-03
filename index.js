@@ -11,14 +11,15 @@ async function startBot() {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        browser: ["Ubuntu", "Chrome", "110.0.5481.178"], 
+        // PARCHE: Usar perfil de MacOS para evitar bloqueos de vinculación
+        browser: ["Mac OS", "Chrome", "110.0.5481.178"], 
         printQRInTerminal: false,
-        connectTimeoutMs: 90000, 
+        connectTimeoutMs: 120000, 
+        defaultQueryTimeoutMs: undefined,
         keepAliveIntervalMs: 30000
     });
 
     if (!sock.authState.creds.registered) {
-        // Tu número configurado correctamente
         const num = "393927483420"; 
         setTimeout(async () => {
             try {
@@ -29,9 +30,9 @@ async function startBot() {
                 console.log('═'.repeat(30));
                 console.log('Vincúlalo ahora en tu WhatsApp ⏳\n');
             } catch (err) { 
-                console.log("❌ Error. Reintenta: node index.js"); 
+                console.log("❌ Error al generar código."); 
             }
-        }, 6000); 
+        }, 10000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
@@ -39,10 +40,10 @@ async function startBot() {
     sock.ev.on('connection.update', (u) => { 
         const { connection, lastDisconnect } = u;
         if (connection === 'close') {
-            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            const shouldReconnect = (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut);
             if (shouldReconnect) startBot();
         } else if (connection === 'open') {
-            console.log('\n✅ ¡FREDBOT ONLINE! 🐺\n');
+            console.log('\n✅ ¡FREDBOT ONLINE! 🐺030\n');
         }
     });
 
@@ -87,9 +88,6 @@ async function startBot() {
                 const f = ["El que madruga, tiene sueño.", "Fred el lobo manda.", "Maracaibo 030.", "JavaScript es vida."];
                 await sock.sendMessage(from, { text: `🗿 *FACTO:* ${f[Math.floor(Math.random() * f.length)]}` });
                 break;
-            case '#piropo':
-                await sock.sendMessage(from, { text: "Si la belleza fuera pecado, no tendrías perdón de Dios. 😉" });
-                break;
             case '#menu':
                 const menu = `
 ╔════ 🐺 *FREDBOT 030* ════╗
@@ -100,6 +98,9 @@ async function startBot() {
 ║ 🗿 #factos, #piropo, #ping
 ╚═══════════════════════════`;
                 await sock.sendMessage(from, { text: menu });
+                break;
+            case '#piropo':
+                await sock.sendMessage(from, { text: "Si la belleza fuera pecado, no tendrías perdón de Dios. 😉" });
                 break;
             case '#ping':
                 await sock.sendMessage(from, { text: '🚀 ¡Pong!' });
