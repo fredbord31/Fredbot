@@ -1,6 +1,7 @@
-const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion, DisconnectReason, jidDecode } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 
+// Base de datos temporal
 const db = { users: {} };
 
 async function startBot() {
@@ -11,14 +12,13 @@ async function startBot() {
         version,
         auth: state,
         logger: pino({ level: 'silent' }),
-        // PARCHE: Usar perfil de MacOS para evitar bloqueos de vinculación
-        browser: ["Mac OS", "Chrome", "110.0.5481.178"], 
+        browser: ["Ubuntu", "Chrome", "110.0.5481.178"], 
         printQRInTerminal: false,
-        connectTimeoutMs: 120000, 
-        defaultQueryTimeoutMs: undefined,
+        connectTimeoutMs: 120000,
         keepAliveIntervalMs: 30000
     });
 
+    // --- VINCULACIÓN POR CÓDIGO ---
     if (!sock.authState.creds.registered) {
         const num = "393927483420"; 
         setTimeout(async () => {
@@ -28,7 +28,7 @@ async function startBot() {
                 console.log('\n' + '═'.repeat(30));
                 console.log(`👉 TU CÓDIGO ES: ${code}`);
                 console.log('═'.repeat(30));
-                console.log('Vincúlalo ahora en tu WhatsApp ⏳\n');
+                console.log('Vincúlalo en tu WhatsApp ⏳\n');
             } catch (err) { 
                 console.log("❌ Error al generar código."); 
             }
@@ -37,16 +37,36 @@ async function startBot() {
 
     sock.ev.on('creds.update', saveCreds);
 
+    // --- EVENTOS DE GRUPO (BIENVENIDA Y DESPEDIDA) ---
+    sock.ev.on('group-participants.update', async (anu) => {
+        const { id, participants, action } = anu;
+        for (let num of participants) {
+            let user = num.split('@')[0];
+            if (action === 'add') {
+                await sock.sendMessage(id, { 
+                    text: `👋 ¡Hola @${user}!\n\n*Bienvenido a este maravilloso lugar de estar.* 🎉\n\nDisfruta tu estancia en el grupo. Soy *Fredbot*, creado por Fred el lobo.`,
+                    mentions: [num]
+                });
+            } else if (action === 'remove') {
+                await sock.sendMessage(id, { 
+                    text: `👋 ¡Adiós @${user}!\n\nEsperamos que vuelvas pronto. 🐺030`,
+                    mentions: [num]
+                });
+            }
+        }
+    });
+
     sock.ev.on('connection.update', (u) => { 
         const { connection, lastDisconnect } = u;
         if (connection === 'close') {
-            const shouldReconnect = (lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut);
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
             if (shouldReconnect) startBot();
         } else if (connection === 'open') {
             console.log('\n✅ ¡FREDBOT ONLINE! 🐺030\n');
         }
     });
 
+    // --- COMANDOS ---
     sock.ev.on('messages.upsert', async (m) => {
         const msg = m.messages[0];
         if (!msg.message || msg.key.fromMe) return;
@@ -55,55 +75,41 @@ async function startBot() {
         const pushName = msg.pushName || "Usuario";
         const text = (msg.message.conversation || msg.message.extendedTextMessage?.text || "").toLowerCase();
         const command = text.split(" ")[0];
-        const args = text.split(" ").slice(1);
 
         if (!db.users[from]) db.users[from] = { coins: 100 };
 
         switch (command) {
+            case '#menu':
+                const menu = `
+╔════ 🐺 *FREDBOT* ════╗
+║  *CREADOR:* Fred el lobo
+║  *NÚMERO:* +39 392 748 3420
+╠═══════════════════════
+║ ✨ *COMANDOS*
+║ #neko, #waifu, #hug
+║ #cartera, #factos, #ping
+║
+║ 🗿 *CRÉDITOS*
+║ Fred el lobo 030
+╚═══════════════════════`;
+                await sock.sendMessage(from, { text: menu });
+                break;
+
             case '#neko':
                 await sock.sendMessage(from, { image: { url: 'https://waifu.pics/api/sfw/neko' }, caption: '🐾' });
                 break;
-            case '#waifu':
-                await sock.sendMessage(from, { image: { url: 'https://waifu.pics/api/sfw/waifu' }, caption: '✨' });
-                break;
-            case '#hug':
-                await sock.sendMessage(from, { react: { text: "🫂", key: msg.key } });
-                await sock.sendMessage(from, { text: `*${pushName}* envió un abrazo.` });
-                break;
-            case '#smoke':
-                await sock.sendMessage(from, { react: { text: "🚬", key: msg.key } });
-                await sock.sendMessage(from, { text: `*${pushName}* fumando... ☁️` });
-                break;
+
             case '#cartera':
                 await sock.sendMessage(from, { text: `🏦 *BANCO FREDBOT*\n👤: ${pushName}\n🪙: ${db.users[from].coins} Fredcoins` });
                 break;
-            case '#ruleta':
-                let bet = parseInt(args[0]) || 10;
-                if (bet > db.users[from].coins) return sock.sendMessage(from, { text: '❌ Coins insuficientes.' });
-                let win = Math.random() > 0.6;
-                db.users[from].coins += win ? bet : -bet;
-                await sock.sendMessage(from, { text: win ? `✅ +${bet} 🎉` : `💀 -${bet}` });
-                break;
+
             case '#factos':
-                const f = ["El que madruga, tiene sueño.", "Fred el lobo manda.", "Maracaibo 030.", "JavaScript es vida."];
+                const f = ["Fred el lobo manda.", "030 es la clave.", "Maracaibo en la casa."];
                 await sock.sendMessage(from, { text: `🗿 *FACTO:* ${f[Math.floor(Math.random() * f.length)]}` });
                 break;
-            case '#menu':
-                const menu = `
-╔════ 🐺 *FREDBOT 030* ════╗
-║  *USUARIO:* ${pushName}
-╠═══════════════════════════
-║ 🌸 #neko, #waifu, #hug, #smoke
-║ 🎮 #cartera, #ruleta
-║ 🗿 #factos, #piropo, #ping
-╚═══════════════════════════`;
-                await sock.sendMessage(from, { text: menu });
-                break;
-            case '#piropo':
-                await sock.sendMessage(from, { text: "Si la belleza fuera pecado, no tendrías perdón de Dios. 😉" });
-                break;
+
             case '#ping':
-                await sock.sendMessage(from, { text: '🚀 ¡Pong!' });
+                await sock.sendMessage(from, { text: '🚀 ¡Pong! Fredbot está activo.' });
                 break;
         }
     });
