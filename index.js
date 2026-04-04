@@ -15,21 +15,40 @@ async function startBot() {
         auth: state,
         logger: pino({ level: 'silent' }),
         browser: ["Fredbot", "Chrome", "110.0.5481.178"], 
-        printQRInTerminal: false,
+        printQRInTerminal: true, 
     });
 
     if (!sock.authState.creds.registered) {
         const num = "393927483420"; 
+        
+        console.log('⏳ TIENES 2 MINUTOS PARA VINCULAR EL FREDBOT...');
+        setTimeout(() => {
+            if (!sock.authState.creds.registered) {
+                console.log('❌ TIEMPO AGOTADO. REINICIA EL BOT PARA UN NUEVO CÓDIGO.');
+                process.exit(0); 
+            }
+        }, 120000);
+
         setTimeout(async () => {
             try {
                 let code = await sock.requestPairingCode(num);
                 code = code?.match(/.{1,4}/g)?.join("-") || code;
                 console.log('\n' + '🐺'.repeat(15) + `\n👉 CÓDIGO FRED: ${code}\n` + '🐺'.repeat(15));
-            } catch (err) { console.log("❌ Error"); }
-        }, 8000); 
+            } catch (err) { console.log("❌ Error al generar código"); }
+        }, 5000); 
     }
 
     sock.ev.on('creds.update', saveCreds);
+
+    sock.ev.on('connection.update', (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === 'close') {
+            const shouldReconnect = lastDisconnect.error?.output?.statusCode !== DisconnectReason.loggedOut;
+            if (shouldReconnect) startBot();
+        } else if (connection === 'open') {
+            console.log('✅ FREDBOT 030 CONECTADO CON ÉXITO');
+        }
+    });
 
     sock.ev.on('messages.upsert', async (m) => {
         const msg = m.messages[0];
@@ -47,9 +66,8 @@ async function startBot() {
 
         if (!db.users[from]) db.users[from] = { coins: 100, exp: 95, nivel: 4, ban: false };
 
-        let rango = "Cachorro 🐾";
-        if (db.users[from].nivel >= 30) rango = "Lobo Alfa 👺";
-        if (isOwner || db.users[from].nivel >= 100) rango = "Lobo Supremo ⚡🌩️";
+        let rango = isOwner ? "Lobo Supremo ⚡🌩️" : "Cachorro 🐾";
+        if (!isOwner && db.users[from].nivel >= 30) rango = "Lobo Alfa 👺";
 
         switch (command) {
             case '#menu':
@@ -81,7 +99,7 @@ async function startBot() {
 ⏰ 🄵🄴🄲🄷🄰 🅈 🄷🄾🅁🄰 
 ────────────────
 🕝 𝐇𝐎𝐑𝐀: ${hora}
-📅 𝐅𝐄𝐂𝐇𝐀: ${fecha}
+📅 𝐅𝐄𝐂𝐇Ａ: ${fecha}
 🏙️ 𝐃𝐈𝐀: ${dia}
 ────────────────
 
@@ -89,7 +107,7 @@ async function startBot() {
 ┃ ➩ #addcoin | #addprem | #addxp
 ┃ ➩ #autoadmin | #backup | #copia
 ┃ ➩ #restart | #update | #resetuser
-┃ ➩ #setppbot | #prefix | #vaciartmp
+┃ ➩ #setppbot | #prefix | #cheats
 ╰━🐾〔 🐺 〕🐾━⬣
 
 ╭━━🌕 GROUP & MODS 🛡️━⬣
