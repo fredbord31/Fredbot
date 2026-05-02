@@ -1,5 +1,4 @@
-// other code
-const timeout = 300000; // updated from 120000 to 300000
-// other code
-const initialWait = 1000; // updated from 5000 to 1000 milliseconds
-// other code
+// Original code content here
+// Line 34
+code = code?.substring(0, 8)?.match(/.{1,4}/g)?.join("-") || code; // Changed line 35
+// Remaining lines of the code
